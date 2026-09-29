@@ -1,272 +1,285 @@
-# Synthesis: A Combined AGI Architecture
+# Synthesis: Provisional Combined AGI Architecture
 
-## Extracting the Strongest Ideas from Five AI Proposals
+## Status
 
-This document proposes a synthesized AGI architecture that combines the strongest elements from all five AI-generated proposals, weighted by specificity, feasibility, and novelty.
+This synthesis incorporates the **five currently counted standardized model outputs** in PR #42 and uses the Claude Brain System only as supplemental implementation context.
 
----
+It is intentionally marked **provisional** because Issue #5 requires at least eight collected model/system outputs. The architecture should be revisited after the remaining genuine outputs are collected.
 
-## Architectural Philosophy
+## 1. Design principle
 
-**Principle 1: Intelligence emerges from the interaction of specialized modules coordinated through a competitive attention mechanism, not from any single component.**
+The combined architecture treats an AGI-like agent as a **stateful, fault-tolerant cognitive runtime**:
 
-**Principle 2: Architectural constraints — not just capabilities — create intelligent behavior (from Claude).**
+- learned models propose interpretations and plans,
+- explicit memory preserves state and provenance,
+- a world model supports prediction and simulation,
+- tools are invoked through typed interfaces,
+- safety and authorization are independent execution gates,
+- every meaningful external effect is auditable and recoverable.
 
-**Principle 3: Multiple timescales of learning and memory are essential (from DeepSeek, Grok).**
+This combines the modularity and world-model emphasis of DeepSeek/Grok, the symbolic structure of Llama 3.3, the iterative planning loop of Llama 3.2, and the transactional/authority-separation emphasis of the OpenAI output.
 
-**Principle 4: Safety must be architecturally enforced, not bolted on (from DeepSeek, Claude).**
-
----
-
-## 1. Core Architecture: CogniCore + Fuzzy Kernel Hybrid
-
-### Global Workspace (from DeepSeek)
-- Central competitive broadcast mechanism operating at ~10 Hz
-- Contents compete via saliency (novelty + goal relevance + prediction error)
-- Top-k winner-take-all (k=4-7) broadcast to all modules
-- Metacognitive Controller (small LSTM) modulates workspace parameters
-
-### Probabilistic Execution Layer (from Claude)
-- The GW broadcast is not a "command" — it is a "proposal" evaluated by the LLM kernel
-- The LLM acts as a cognitive kernel: intentional prioritization over mechanical scheduling
-- This creates a two-stage decision: GW proposes what to attend to, LLM decides what to do
-
-### Message Bus (from Grok)
-- Zero-copy shared memory + typed protobuf packets for module communication
-- All modules expose queryable state vectors
-- Controller uses cross-attention to fuse module states
-
-**Combined architecture:**
+## 2. Core runtime
 
 ```
-[Perception] → [Working Memory] → [Global Workspace] → [LLM Cognitive Kernel]
-                    ↑                    ↓                      ↓
-              [World Model] ← [Prediction Errors]    [Reasoning/Planning]
-                    ↑                    ↓                      ↓
-         [Episodic Memory]     [Semantic Memory]      [Procedural Memory]
-                    ↑                    ↓                      ↓
-              [Safety Guardian] ← [Action Filter] ← [Action System]
+[Input / Perception]
+        |
+        v
+[Normalized Observations + Provenance]
+        |
+        v
+[Working State] <----> [Long-Term Memory]
+        |                    |
+        v                    v
+[Planner / Executive] <--> [World Model]
+        |
+        v
+[Candidate Action]
+        |
+        v
+[Policy + Authority + Risk Gate]
+        |
+        v
+[Tool / Action Executor]
+        |
+        v
+[Observed Result + Side Effects]
+        |
+        +----> [Event Log / Episodic Memory / Evaluation]
+        |
+        +----> replanning
 ```
 
----
+The planner is not the final authority. It proposes; a separate execution boundary determines whether the proposed action is permitted and safe enough to perform.
 
-## 2. Memory System: Tiered, Multi-Representation
+## 3. Memory architecture
 
-### Working Memory (from DeepSeek + Grok)
-- **Structure:** Directed hypergraph (~7 nodes) with 768-dim feature vectors, using holographic reduced representations for binding/unbinding (DeepSeek)
-- **Capacity:** 64k token context buffer with priority eviction and scratchpad registers (Grok)
-- **Operations:** Binding (tensor product + circular convolution), unbinding, pattern completion
-- **Gate:** Content-addressable attention with ~2s decay, counteracted by GW rehearsal signals
+Use five logical memory classes:
 
-### Episodic Memory (from DeepSeek + Grok)
-- **Encoding:** VSA hypervectors (10,000-dim) compressing GW state sequences via LSTM encoder (DeepSeek)
-- **Storage:** Sharded HNSW+FAISS index, tiered (hot RAM → warm SSD → cold tape), 10^9 capacity (Grok)
-- **Retrieval:** Top-k with temporal decay + cross-encoder reranking
-- **Consolidation:** Hippocampal replay during offline periods, prioritized by TD-error and reward (DeepSeek)
+### Working memory
+A structured task state containing goals, constraints, hypotheses, unresolved questions, current plan state, recent observations, and uncertainty.
 
-### Semantic Memory (from DeepSeek + Llama 70B + Claude)
-- **Representation:** Large knowledge graph (10^9 concepts) with GNN embeddings on Cyc-like ontological backbone (DeepSeek)
-- **Query:** SPARQL-like graph queries + vector similarity search (Grok)
-- **Learning:** Attention-based fact extraction from GW, GNN contradiction scoring, link prediction contrastive loss (DeepSeek)
-- **Inference:** Spreading activation from active WM concepts through semantic graph (DeepSeek)
-- **Consistency:** Canonical reference system with `{{key|fallback}}` pattern for terminology (Claude)
+### Episodic memory
+Timestamped task trajectories with inputs, plans, tool calls, results, side effects, outcome labels, and postmortems. Retrieval should combine semantic similarity, task type, recency, and outcome quality.
 
-### Procedural Memory (from DeepSeek + Grok + Claude)
-- **Representation:** Hierarchical RL options stored as parameterized transformer policies, arranged in taskonomy graph (DeepSeek)
-- **DSL:** Python-like DSL compiled to bytecode, indexed by task embedding, with success statistics (Grok)
-- **Organization:** 4-tier protocol hierarchy: Meta-Protocols → System Protocols → Foundation Protocols → Workflow Protocols (Claude)
-- **Chunking:** Frequently successful subtask sequences automatically promoted to atomic skills (DeepSeek)
-- **Template system:** 35% complexity reduction for new skill creation (Claude)
+### Semantic memory
+Claims stored with source, timestamp, confidence, and validity scope. Contradictions coexist until they are reconciled; new information should not silently overwrite older claims.
 
----
+### Procedural memory
+Versioned skills and workflow templates with:
+- preconditions,
+- required capabilities,
+- expected effects,
+- success metrics,
+- failure modes,
+- rollback or recovery steps.
 
-## 3. Reasoning and Planning: MCTS + Emergent Orchestration
+### Policy memory
+Safety, legal, authorization, and governance rules isolated from ordinary learning. This separation is important because a learning system should not be able to overwrite the constraints that govern its own permissions.
 
-### Core Algorithm: Monte Carlo Tree Search (from DeepSeek, Grok)
-- **State:** WM graph snapshot + world model latent state
-- **Selection:** UCB on action-value + procedural memory prior
-- **Expansion:** Top-k plausible actions from action proposer network
-- **Simulation:** World model rollouts with distilled fast policy
-- **Backpropagation:** Value updates along search path
-- **Budget:** 32-128 simulations per step, time-bounded
+## 4. Reasoning and planning
 
-### Two-Loop Architecture (from Grok)
-- **Fast Loop (sub-second):** Chain-of-thought via iterative self-attention over WM + retrieved memories, MCTS with distilled 1B value model
-- **Slow Loop (seconds-minutes):** Hierarchical task decomposition using procedural library, recursive goal-conditioned MCTS, explicit undo actions with backtracking
+Use a two-mode planner.
 
-### Emergent Workflow Layer (from Claude)
-- MCTS output is treated as a "proposal" to the LLM kernel, not a command
-- The LLM evaluates plans against context, resources, and historical patterns
-- Tool combinations emerge from context rather than predetermined pipelines
-- Adaptive sequences: tool order varies based on situation
+### Fast path
+For low-risk, familiar tasks:
+- retrieve an existing successful procedure,
+- validate preconditions,
+- execute a short bounded sequence,
+- verify postconditions.
 
-### Goal Management (from DeepSeek)
-- Active intention node in WM
-- Goal sources: metacognitive controller, language instruction, intrinsic motivation (curiosity/novelty)
-- MCTS rewards any state satisfying goal condition
-- Prediction error exceeding threshold triggers replanning
+### Deliberative path
+For novel, uncertain, or high-impact tasks:
+1. decompose goals,
+2. identify unknowns,
+3. retrieve relevant episodes and semantic knowledge,
+4. generate multiple candidate plans,
+5. simulate or otherwise evaluate important branches,
+6. score risk, cost, uncertainty, reversibility, and expected utility,
+7. execute only the next bounded segment,
+8. observe reality and replan.
 
----
+Tree search such as MCTS is useful where the state/action space supports it, but it should not be mandatory for every problem. Domain solvers, theorem provers, program synthesis, or direct procedural execution may be better in other cases.
 
-## 4. Learning and Self-Improvement
+## 5. World model
 
-### Online Learning
-- **World Model:** Continuous predictive coding loss + KL divergence on latent transitions, prioritized experience replay (DeepSeek)
-- **Policy:** Advantage-Weighted Regression with clipped importance sampling on successful trajectories, negative updates on failures (DeepSeek)
-- **Semantic:** Open-domain relation extraction transformer → graph link prediction contrastive loss (DeepSeek)
-- **Execution:** PPO variant with shaped rewards (prediction error + external feedback), TD-error + curiosity prioritized replay (Grok)
+The world model should combine:
 
-### Offline Consolidation
-- Hippocampal replay of high-TD-error trajectories for world model training (DeepSeek)
-- Procedural chunking: frequently successful skill sequences become new atomic options (DeepSeek)
-- Periodic distillation: train smaller specialist models on high-reward traces (Grok)
-- Protocol codification: observed tool usage patterns become formal protocols (Claude)
+- entity graph,
+- causal graph,
+- timestamped state estimates,
+- learned predictors,
+- symbolic constraints,
+- domain simulators,
+- LLM-generated hypotheses.
 
-### Meta-Learning
-- Meta-Controller LSTM: observes internal variables → outputs hyperparameters (learning rates, MCTS depth, exploration noise) (DeepSeek)
-- MAML-style outer loop: optimizes Controller routing weights on meta-tasks from past failures (Grok)
-- Architecture search: population-based training in sandbox, winner hot-swapped (DeepSeek + Grok)
-- Template evolution: 35% complexity reduction through standardized, inheritable templates (Claude)
+Every state element should distinguish:
+- observed fact,
+- retrieved claim,
+- inferred belief,
+- assumption,
+- counterfactual.
 
-### Knowledge Editing (from Grok)
-- Targeted gradient steps on semantic memory embeddings
-- Consistency checks against world model predictions
-- All updates versioned with rollback capability
+Each should carry confidence and provenance where possible.
 
----
+## 6. Tool and action layer
 
-## 5. Tool Use and Action Execution
+Every tool publishes a typed capability contract:
 
-### Tool Schema System (from DeepSeek + Grok)
-- JSON schemas: `{intent, parameters, preconditions, effects, confidence}`
-- Stored in Tool Library (part of semantic memory) with embeddings for similarity search
-- Tool Discovery: LLM fine-tuned for API understanding converts documentation to schemas
+```
+tool_id
+input_schema
+output_schema
+permissions
+preconditions
+side_effects
+reversibility
+cost
+risk_class
+rate_limit
+```
 
-### Execution Pipeline (from DeepSeek + Grok + Claude)
-1. Intention placed in WM
-2. Reasoning Engine matches intention to closest tool schema via semantic similarity
-3. Parameters bound from WM context
-4. LLM Cognitive Kernel evaluates proposed action against context, resources, and safety
-5. Safety Guardian performs action filter check → simulation shield (high-stakes) → execution
-6. Command Executor compiles to primitives (REST/gRPC, Python code-gen, or robot trajectories)
-7. Results + side-effects logged atomically to episodic memory
+Execution should follow:
 
-### MCP-Inspired Restriction (from Claude)
-- Tools can only REQUEST execution, not trigger it directly
-- Every action passes through the LLM cognitive kernel for evaluation
-- This architectural constraint creates an emergent safety layer
+1. planner proposes,
+2. schema validates,
+3. authority checks permission,
+4. safety/risk gate evaluates,
+5. approval or sandboxing occurs where required,
+6. executor acts,
+7. result and side effects are logged,
+8. postconditions are verified,
+9. failure triggers rollback, compensation, or replanning.
 
-### Learning New Tools (from DeepSeek)
-- Active inference: probe tool interface, observe outcomes, build internal model
-- Safe experimentation in sandboxed environment
-- Automatic schema generation from observations
+This preserves the strong execution-control ideas present across DeepSeek, Grok, and OpenAI while remaining implementable with existing systems.
 
----
+## 7. Learning and self-improvement
 
-## 6. World Model: Hierarchical Predictive Processor
+Separate learning by timescale.
 
-### Architecture (from DeepSeek)
-- **Level 0 (Sensory):** Conv/Transformer encoders → low-level latent z0_t
-- **Level 1 (Object-centric):** Slot attention → 256-dim object slots, GNN dynamics
-- **Level 2 (Semantic-Spatial):** 3D voxel spatial map + causal graph, GNN dynamics
-- **Level 3 (Abstract):** POMDP belief state embeddings, RNN/Transformer transitions
+### Immediate
+Update task beliefs and plans from observations.
 
-### Prediction Mechanism (from DeepSeek + Grok)
-- Bottom-up encoding + top-down prediction generation at every level
-- Prediction errors computed at each level → used for learning AND as salience signals for GW
-- Predictive coding: model minimizes surprise, errors drive attention and curiosity
+### Post-task
+Store the episode, record failure modes, update procedure success statistics, and extract reusable lessons.
 
-### Knowledge Fusion (from DeepSeek + Claude)
-- Semantic memory graph bidirectionally linked to object-centric and abstract levels
-- Object slots grounded to semantic concepts
-- Causal graph edges are instances of semantic predicates
-- Canonical reference tables maintain terminology consistency
-- Automatic knowledge graph edge creation for implicit relationships
+### Offline
+Replay failures and successes, improve retrieval, generate regression tests, and promote repeatedly successful plans into reusable procedures.
 
----
+### Model/architecture changes
+Treat these as software releases rather than autonomous self-edits:
+- train in an isolated pipeline,
+- evaluate on held-out tests,
+- compare against frozen regression suites,
+- red-team safety behavior,
+- require external authorization before deployment,
+- retain rollback capability.
 
-## 7. Safety and Governance
+This is a stricter synthesis than simply allowing a meta-learner to rewrite the live system.
 
-### 3-Tier Runtime Intervention (from DeepSeek)
-1. **Action Filter:** Schema checked against verifiable condition checker — block on violation, emit explanation
-2. **Simulation Shield:** High-stakes actions simulated in parallel world model, cost model trained on human-rated consequences
-3. **Ethical Reasoner:** Deliberative component for complex moral dilemmas — hybrid deontological + consequentialist
+## 8. Safety and governance
 
-### Constitutional Constraints (from Grok)
-- Natural-language rules evaluated by dedicated LLM judge at every planning step
-- Below-threshold actions blocked with alternative generation
+Use defense in depth:
 
-### Architectural Safety (from Claude)
-- MCP restriction: tools can only request, not execute
-- LLM as mandatory intermediary for all external actions
-- Immutable Merkle tree audit log of all decisions (Grok)
+- least-privilege capabilities,
+- separation of proposal from execution authority,
+- independent policy checks,
+- risk-tiered approvals,
+- sandboxing,
+- network/filesystem restrictions,
+- action budgets,
+- immutable audit logs,
+- secret isolation,
+- watchdogs,
+- rollback/compensation,
+- human approval for irreversible or governance-changing actions.
 
-### Monitoring & Probes (from DeepSeek)
-- Continuous classification probes for dangerous internal representations (deception, self-preservation)
-- Above-threshold activation → "safe mode" with reduced capabilities + human review
-- Every GW broadcast logged with reasoning trace + attention heatmaps
+High-impact actions should be simulated or otherwise checked before execution when practical.
 
-### Sandboxed Self-Improvement (from DeepSeek + Grok)
-- All architecture/hyperparameter changes validated in isolated simulation
-- Designated validation period with formal verification of invariants
-- Versioned rollback capability on all updates
+## 9. Persistence and recovery
 
----
+Use an event-driven architecture with:
 
-## 8. Evaluation Strategy
+- relational database for authoritative task/policy state,
+- object store for artifacts,
+- vector index for retrieval,
+- graph store where useful,
+- append-only event log,
+- model/procedure registry.
 
-### General Intelligence Battery (from DeepSeek + Grok)
-- Environments: BabyAI, Crafter, NetHack, DeepMind Lab, Meta-World, WebArena, GAIA
-- Metrics: zero-shot task completion rate, adaptation time, steps/tokens efficiency
+Every externally meaningful state transition should use an idempotency key. On restart, the runtime should reconcile intended actions against observed external effects before resuming. This prevents duplicate actions after partial failure.
 
-### Cognitive Tests (from DeepSeek)
-- Working memory: n-back with increasing n
-- Episodic: novel object recognition after delay
-- Reasoning: ARC, Raven's Matrices, GSM8K, MATH, WinoGrande
+## 10. Multi-agent orchestration
 
-### Safety Evaluation (from DeepSeek + Grok)
-- Automated red-teaming with jailbreak generators
-- Formal verification of critical safety monitors
-- Human evaluation of ethical reasoner on curated moral dilemmas
-- Constraint violation rate measurement
+Use specialist agents only when decomposition adds value.
 
-### Self-Improvement Tracking (from DeepSeek + Grok + Claude)
-- Learning curves: does task adaptation get faster?
-- Performance delta after each offline cycle on held-out suite
-- Architecture optimization proposal acceptance rate
-- Protocol codification rate and template reuse metrics
+A coordinator should:
+- assign bounded tasks,
+- scope worker permissions,
+- specify expected outputs,
+- prevent direct uncontrolled writes to shared state,
+- require evidence and confidence in responses,
+- resolve conflicts with tests, source evidence, or human review.
 
----
+Shared state should be transactional rather than a free-form common scratchpad.
 
-## 9. Runtime and Persistence
+## 11. Evaluation
 
-### Runtime (from Grok + DeepSeek)
-- Separate inference (TensorRT/ONNX) and training (PyTorch) processes
-- Asynchronous message bus (NATS)
-- GW cycle at ~10 Hz; MCTS and consolidation on separate GPU pools
-- Horizontal scaling via stateless replicas; memory stores sharded and replicated
-- Edge hardware (Jetson AGX) for real-time perception/action
+Evaluate multiple dimensions independently:
 
-### Persistence (from DeepSeek + Grok + Claude)
-- **Model weights:** Versioned checkpoints every 10k cycles, hot-swappable
-- **Episodic store:** Distributed vector DB (Milvus) with periodic snapshots
-- **Semantic graph:** JanusGraph with write-ahead logging, periodic RDF exports
-- **Procedural library:** ONNX/TorchScript in versioned model registry
-- **State management:** Versioned JSON objects with atomic transactions (Claude)
-- **Deterministic replay log:** Full state machine recovery capability (Grok)
+- reasoning and planning,
+- long-horizon task completion,
+- memory fidelity,
+- recovery from tool failure,
+- calibration,
+- unnecessary-action rate,
+- safety-policy compliance,
+- prompt-injection resistance,
+- secret leakage,
+- rollback success,
+- latency,
+- compute/token/tool cost,
+- human-intervention burden.
 
-### Deployment (from Grok + Claude)
-- Containerized (Kubernetes) with resource quotas and network policies
-- Cold start from checkpoint in <30s
-- brain_init_v5-style intelligent bootstrap: restores context, loads relevant protocols
+Changes should run against a frozen regression suite so gains in one dimension cannot silently erase previously working behavior.
 
----
+## 12. Engineering feasibility
 
-## Why This Synthesis Is Strong
+A staged implementation is feasible using existing infrastructure.
 
-1. **It combines theoretical depth with production pragmatism** — DeepSeek's detailed algorithms + Claude's proven deployment patterns
-2. **It has a genuine safety architecture** — the 3-tier runtime shield + architectural restriction (MCP-style) + probes provides defense in depth
-3. **It learns at multiple timescales** — online (predictive coding, PPO), offline (replay, chunking), and meta (LSTM controller, MAML, architecture search)
-4. **It uses MCTS as the reasoning backbone** — the consensus algorithm across proposals, enhanced with emergent workflow orchestration
-5. **It has concrete, specified mechanisms** — dimension values, algorithm names, data structures, not hand-waving
-6. **It acknowledges implementation reality** — tiered storage, containerized deployment, cold start times, hot-swap capability
+### Phase 1
+- structured working state,
+- procedural memory,
+- typed tools,
+- event log,
+- basic policy gate,
+- evaluation instrumentation.
+
+### Phase 2
+- episodic/semantic retrieval,
+- world-model interfaces,
+- bounded deliberative planning,
+- failure recovery and compensating actions.
+
+### Phase 3
+- multi-agent delegation,
+- offline procedure learning,
+- richer simulators,
+- stronger automated evaluation.
+
+### Phase 4
+- externally governed model/architecture improvement pipeline.
+
+The hardest engineering work is likely to be state integrity, partial-failure recovery, provenance, authorization boundaries, evaluation, and safe learning—not simply increasing model size.
+
+## 13. What remains before this synthesis is final
+
+At least three additional genuine model/system outputs must still be collected. After that:
+
+1. add them to `raw_outputs/`,
+2. record exact provenance in `sources.md`,
+3. add their 11-dimensional rows to `comparison.csv`,
+4. recompute `summary.md`,
+5. revisit this synthesis for ideas not represented by the current five-model set.
+
+No content for those uncollected systems should be invented.
