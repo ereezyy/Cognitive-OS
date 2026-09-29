@@ -1,10 +1,6 @@
-# AGI Architecture Proposal — Prompt Used
+# AGI Architecture Proposal — Collection Prompt and Protocol
 
-## Collection Method
-
-The same exact prompt was submitted to all five AI systems (four via API, one via public disclosure) to elicit detailed AGI architecture proposals. This ensures comparability across model outputs.
-
-## The Prompt
+## Baseline prompt (baseline-v1)
 
 ```
 Propose a detailed AGI (Artificial General Intelligence) architecture. Include:
@@ -22,21 +18,26 @@ Propose a detailed AGI (Artificial General Intelligence) architecture. Include:
 Be specific. Include concrete mechanisms, not just high-level concepts.
 ```
 
-## Prompt Design Rationale
+## Collection rule
 
-- **Nine structured sections** ensure coverage of all major AGI subsystem concerns
-- **"Be specific" + "concrete mechanisms"** directive pushes models beyond vague hand-waving
-- **Open-ended framing** ("Propose a detailed AGI architecture") allows each model to express its unique architectural philosophy
-- **Terminology alignment** (working/episodic/semantic/procedural memory) uses standard cognitive science vocabulary to elicit comparable responses
+Use the baseline prompt unchanged where possible. If a provider requires an adaptation, document the exact change and why it was necessary. Preserve the resulting answer as raw or minimally cleaned output. Do not reconstruct, imitate, or synthesize a missing model response.
 
-## Models & Collection Dates
+## Counted standardized outputs
 
-| Model | Provider | Access Method | Date Collected |
-|-------|----------|---------------|----------------|
-| DeepSeek v4 Pro | DeepSeek | API | July 25, 2025 |
-| Grok 3 Mini | xAI | API | July 25, 2025 |
-| Llama 3.3 70B Versatile | Groq | API | July 25, 2025 |
-| Llama 3.2 1B | Ollama (local) | Local inference | July 25, 2025 |
-| Claude (Brain System) | Anthropic | Public Medium article | August 16, 2025 |
+| Model/system | Provider/tool | Access method | Collection date | Prompt adaptation |
+|---|---|---|---|---|
+| DeepSeek v4 Pro | DeepSeek | API via Hermes configuration | July 25, 2025 | None documented |
+| Grok 3 Mini | xAI | API via Hermes configuration | July 25, 2025 | None documented |
+| Llama 3.3 70B Versatile | Meta model via Groq | Groq API | July 25, 2025 | None documented |
+| Llama 3.2 1B Instruct | Meta model via Ollama | Local inference | July 25, 2025 | None documented |
+| GPT-5.6 Sol | OpenAI / ChatGPT | ChatGPT session | September 28, 2026 | None |
 
-**Note on Claude:** The Claude entry differs from the others — it is not a direct prompt response but a publicly disclosed cognitive architecture (the "Brain System") that Claude itself designed and built over 6 months. This architecture was documented by Claude in an August 2025 Medium article by Micheal Bee. It represents Claude's actual implemented AGI-adjacent architecture (38 MCP tools, 50+ state systems, 58 protocols) rather than a theoretical proposal.
+## Supplemental material — not counted toward the eight-output minimum
+
+| Material | Source | Reason not counted |
+|---|---|---|
+| Claude Brain System | Public Medium article by Micheal Bee | Not a response to baseline-v1; secondary/public architecture documentation |
+
+## Outstanding collection
+
+At least **three additional distinct model/system outputs** are still required. Recommended targets are Gemini, Qwen, and Mistral. Their model IDs, dates, access methods, raw outputs, and any prompt changes must be recorded only after actual collection.
